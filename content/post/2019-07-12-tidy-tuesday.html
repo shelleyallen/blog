@@ -1,0 +1,44 @@
+---
+title: Tidy Tuesday
+author: Shelley Allen
+date: '2019-07-12'
+slug: tidy-tuesday
+categories: []
+tags: []
+---
+
+
+
+<p>I thought a good place to start would be TidyTuesday data, this week it is Women’s World Cup Results.</p>
+<p>First, I had a look at the Country level stats to see who won the most games and got the most goals. I thought this would be interesting to see over the different Women’s World Cups so I plotted a bar chart of the number of games won by each country facetted by year. Clearly Women’s World Cup football is dominated by just a few teams but there are some surprising successes like Netherlands in 2019. I decided to plot a similar graph but for number of goals scored instead of games one which led me to create a function instead of repeating lots of code.</p>
+<pre class="r"><code>  total_wins &lt;- wwc_outcomes %&gt;%
+    group_by(country) %&gt;%
+    summarise(total_wins = sum(win_status == &quot;Won&quot;), 
+              total_goals = sum(score)) %&gt;%
+    arrange(desc(total_wins))
+  
+  country_wins &lt;- wwc_outcomes %&gt;% 
+    group_by(country, year) %&gt;%
+    summarise(n_wins = sum(win_status == &quot;Won&quot;),
+              n_goals = sum(score),
+              best_round = min(round)) %&gt;%
+    left_join(total_wins) %&gt;%
+    arrange(year, desc(n_wins))</code></pre>
+<pre><code>## Joining, by = &quot;country&quot;</code></pre>
+<pre class="r"><code>  country_year_plot &lt;- function(df, column_name, column_label) {
+    
+    df %&gt;%
+      ggplot(aes(reorder(factor(country), -total_wins), !!column_name)) +
+      geom_col(aes(fill = best_round)) +
+      facet_grid(year ~ .) + 
+      theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+      labs(title = &quot;The number of games won by each country in each Women&#39;s World Cup&quot;,
+          x = &quot;Country&quot;,
+          y = column_label,
+          fill = &quot;Round achieved&quot;)
+    }
+  
+  country_year_plot(country_wins, quo(n_wins), &quot;Games won&quot;)</code></pre>
+<p><img src="/post/2019-07-12-tidy-tuesday_files/figure-html/explore-1.png" width="672" /></p>
+<pre class="r"><code>  country_year_plot(country_wins, quo(n_goals), &quot;Goals scored&quot;)</code></pre>
+<p><img src="/post/2019-07-12-tidy-tuesday_files/figure-html/explore-2.png" width="672" /></p>
