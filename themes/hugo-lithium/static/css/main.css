@@ -48,6 +48,12 @@ code {
   text-align: right;
 }
 
+.nav-title {
+  float: left; 
+  margin-top: -11px; 
+  padding-left: 20px;
+}
+
 .nav-logo {
   float: left;
   margin-top: -11px;
