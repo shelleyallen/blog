@@ -1,5 +1,5 @@
 ---
-title: Tidy Tuesday: Women's World Cup Results
+title: Tidy Tuesday - Women's World Cup Results
 author: Shelley Allen
 date: '2019-07-12'
 slug: tidy-tuesday
