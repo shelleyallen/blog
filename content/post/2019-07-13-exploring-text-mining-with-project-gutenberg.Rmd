@@ -1,0 +1,223 @@
+---
+title: Exploring text mining with Project Gutenberg
+author: Shelley Allen
+date: '2019-07-13'
+slug: exploring-text-mining-with-project-gutenberg
+categories: []
+tags: []
+---
+
+```{r setup, include=FALSE}
+  knitr::opts_chunk$set(echo = TRUE)
+  library(tidyverse)
+  library(gutenbergr)
+  library(tidytext)
+  library(wordcloud)
+  library(reshape2)
+  library(topicmodels)
+```
+
+I have recently read (Text Mining with R)[https://www.tidytextmining.com/] and thought I would use their approach for some text analysis in R.
+
+I love Arthur Conan Doyle's Sherlock Holmes novels so I started by downloading the text for 'The Adventures of Sherlock Holmes' from (Project Gutenberg)[https://www.gutenberg.org/]. This book contains 12 short stories.
+
+Since writing this blog post, I have discovered that Julia Silge, one of the authors of Text Mining with R, analysed these Sherlock Holmes novels and (blogged brilliantly about them)[https://juliasilge.com/blog/sherlock-holmes-stm/] in Jan 2018! There are overlaps between her post and mine but she is mainly discussing the STM package for topic modelling.
+
+In this first block, each line in the text is labelled by the short story it belongs to. A regex is used to look for Roman Numerals from I to XII. The titles are tidied up a bit using _stringr_ functions. I use the _tidytext_ package to tokenise the text, remove stopwords and calculate term frequencies. Finally, I plot the most frequent terms for each short story.
+
+The plot shows 'Holmes' (unsurprisingly) occurs most frequently in most stories but other words are descriptive of each story. For example, the names of various characters - 'Irene' and 'Adler' for 'A Scandal in Bohemia' and the 'Rucastle' in 'The Adventure of the copper beeches'. 
+
+```{r sherlock}
+  sherlock <- gutenberg_download(1661)
+
+  sherlock <- sherlock %>%
+    mutate(linenumber = row_number()) %>% 
+    filter(linenumber >= 25)
+
+  roman_numerals = str_c(as.roman(seq(1,12)), collapse = "|")
+  roman_regex = str_c("^(ADVENTURE[:space:])?(", roman_numerals, ")\\.[:space:]")
+  
+  sherlock_books <- sherlock %>%
+    mutate(book = ifelse(str_detect(text, roman_regex), text, NA)) %>%
+    fill(book) %>%
+    mutate(book = str_to_sentence(str_trim(str_replace(book, "^ADVENTURE", ""))))
+  
+  tidy_sherlock <- sherlock_books %>%
+    unnest_tokens(word, text) %>%
+    anti_join(stop_words)
+  
+  sherlock_word_counts <- tidy_sherlock %>%
+    group_by(book) %>%
+    count(word, sort=TRUE)
+    
+  
+  sherlock_word_counts %>%
+    top_n(10) %>%
+    ungroup() %>%
+    ggplot(aes(word, n, fill = book)) +
+    geom_col(show.legend = FALSE) +
+    facet_wrap(~book, scales = "free", ncol = 3) +
+    coord_flip() +
+    labs(x = NULL, y = "Term frequency") +
+    theme(strip.text = element_text(size = 8))
+    
+```
+
+
+I use another tidytext function (*bind_tf_idf*) to calculate the term frequency * inverse document frequency (tf-idf) for each term in each short story. I then create a plot to show the terms for each book with the highest tf-idf scores. My son came to have a look at this plot and pointed out that I need to order the facets by Roman Numerals not alphabetically, that could be a future improvement! Notice that the term 'Holmes' does not have a high tf-idf score for any of the stories because 'Holmes' is found frequently in all stories. If we compare the terms with highest term frequency to those with highest tf-idf score for 'A Scandal in Bohemia' then we can see that 'house', 'street' and 'door' have high term frequency but not high tf-idf scores because they occur in all stories. 
+
+```{r tfidf}
+  sherlock_tf_idf <- sherlock_word_counts %>%
+    bind_tf_idf(word, book, n)
+
+  sherlock_tf_idf %>%
+    arrange(desc(tf_idf)) %>%
+    group_by(book) %>% 
+    top_n(10) %>% 
+    ggplot(aes(word, tf_idf, fill = book)) +
+    geom_col(show.legend = FALSE) +
+    facet_wrap(~book, scales = "free", ncol = 3) +
+    coord_flip() +
+    labs(x = NULL, y = "TF*IDF") +
+    theme(strip.text = element_text(size = 8))
+
+```
+
+I decided to investigate the sentiment of the terms with highest tf-idf scores. I used an inner join to word sentiments because most terms in each story will not have a sentiment associated with them. The plot shows the top 10 terms by highest tf-idf (which also have an associated sentiment) for each story, colour is used to indicate sentiment. Looking at the (story summaries on Wikipedia)[https://en.wikipedia.org/wiki/The_Adventures_of_Sherlock_Holmes#Stories] and comparing with the plot, it appears that stories with more negative themes such as murder have more negative high tf-idf terms than those about more light-hearted themed stories. For example, 'The five orange pips' is about murders carried out by the KKK whereas 'The adventure of the blue carbuncle' is about a stolen gem!
+
+```{r tf-idf-with-sentiments}
+  with_sentiments <- sherlock_tf_idf %>%
+    inner_join(get_sentiments("bing"))
+  
+  with_sentiments %>%
+    arrange(desc(tf_idf)) %>%
+    group_by(book) %>% 
+    top_n(n = 10, wt = tf_idf) %>% 
+    ggplot(aes(word, tf_idf, fill = sentiment)) +
+    geom_col() +
+    facet_wrap(~book, ncol = 3, scales = "free") +
+    coord_flip() +
+    labs(x = NULL, y = "TF*IDF") +
+    theme(strip.text = element_text(size = 8),
+          legend.position = "bottom")
+```
+
+Using the _wordcloud_ library to generate a wordcloud of the most popular terms in the 12 short stories.
+
+```{r wordcloud}
+  sherlock_word_counts_grouped <- tidy_sherlock %>%
+    count(word, sort=TRUE) 
+
+  pal <- brewer.pal(8,"Dark2")
+  wordcloud(words = sherlock_word_counts_grouped$word, 
+            freq = sherlock_word_counts_grouped$n, 
+            min.freq = 10,
+            max.words = 100,  
+            colors = pal)
+```
+
+The _comparison.cloud_ function can be used to compare the most common terms with positive sentiment to those with negative sentiment.
+
+```{r wordcloud-sentiment}
+  sherlock_word_counts_grouped %>%
+    inner_join(get_sentiments("bing")) %>%
+    acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+    comparison.cloud(colors = c("red", "blue"),
+                     max.words = 100, 
+                     scale = c(3, 0.4))
+```
+
+The following tibble shows the proportion of positive and negative terms in each story. Every story has more negative than positive terms but some more than others. It appears to me that the top tf-idf sentiments was more useful in showing the overall sentiment of the stories than looking at every term in the stories. 
+
+```{r}
+  sherlock_word_counts %>%
+    inner_join(get_sentiments("bing")) %>%
+    group_by(book) %>%
+    count(sentiment) %>%
+    mutate(proportion = round(n/sum(n), 2), max_prop = max(proportion)) %>%
+    arrange(desc(max_prop)) %>%
+    select(-max_prop)
+```
+
+It is interesting to note that only about 16-21% of terms in each story has an associated sentiment.
+
+```{r}
+  sherlock_word_counts %>%
+    left_join(get_sentiments("bing"))  %>%
+    mutate(sentiment = ifelse(is.na(sentiment), 'unknown', sentiment)) %>%
+    group_by(book) %>%
+    summarise(prop = (sum(sentiment == "positive") + sum(sentiment == "negative"))/n()) %>%
+    arrange(desc(prop))
+    
+```
+
+I thought it would be interesting to compare Arthur Conan Doyle short stories with those of H. G. Wells. I downloaded 'Thirty Strange Stories' from Project Gutenberg and did a bit of preprocessing in order to label each line of text with the story it belongs to. Just as with the Sherlock stories, I use _tidytext_ functions to remove stopwords and get word counts.
+
+
+```{r wells}
+  wells <- gutenberg_download(59774)
+
+  wells <- wells %>%
+    mutate(linenumber = row_number()) 
+
+  contents <- wells %>%
+    filter(linenumber >= 28, linenumber <= 86, text != "")
+  
+  contents <- contents %>%
+    mutate(text = ifelse(str_detect(text, "A MOTH"), "A MOTH", text)) %>%
+    mutate(text = paste0("(", str_trim(str_replace(text, "[:digit:]+", "")), ")"))
+    
+  contents_regex = paste0("^(", str_c(contents$text, collapse = "|"), ")$")
+  
+  wells_books <- wells %>%
+    filter(linenumber >= 96) %>%
+    mutate(text = str_trim(text), book = ifelse(str_detect(text, contents_regex), text, NA)) %>%
+    fill(book)
+  
+  tidy_wells <- wells_books %>%
+    unnest_tokens(word, text) %>%
+    anti_join(stop_words)
+  
+  wells_word_counts <- tidy_wells %>%
+    group_by(book) %>%
+    count(word, sort=TRUE) 
+
+```
+
+I use the _lda_ function from the _topicmodels_ library to take the 12 stories from Arthur Conan Doyle and the 30 stories from H G Wells and find just 2 topics. I was wondering whether the stories would be split into each topic. The plot shows that while all of the Sherlock stories are modelled by one topic and most of the Wells stories are modelled by the other topic, there are a few Wells stories that represented either by the 'Sherlock' topic or split between the two. This seems reasonable as The Adventures of Sherlock Holmes stories are all detective stories with the 2 main characters remaining the same whereas the H G Wells stories are more varied in topic and style. I think a future blog post could investigate these topics to look at what makes those Wells stories belong to the Sherlock topic. 
+
+```{r lda}
+  library(topicmodels)
+
+  s_w_c <- sherlock_word_counts %>%
+    ungroup() %>%
+    mutate(book = paste("Sherlock:", book))
+
+  w_w_c <- wells_word_counts %>%
+    ungroup() %>%
+    mutate(book = paste("Wells:", book))
+
+  word_counts <- rbind(s_w_c, w_w_c)
+
+  books_dtm <- word_counts %>%
+    cast_dtm(book, word, n)
+  
+  lda <- LDA(books_dtm, k = 2)
+  
+  topics <- tidy(lda, matrix = "beta")
+  
+  top_terms <- topics %>%
+    group_by(topic) %>%
+    top_n(20, beta) %>%
+    ungroup() %>%
+    arrange(topic, -beta)
+
+  gamma <- tidy(lda, matrix = "gamma")
+  
+  gamma %>%
+    mutate(author = ifelse(str_detect(document, "Sherlock:"), "Sherlock", "Wells")) %>%
+    ggplot(aes(factor(topic), gamma)) +
+    geom_boxplot() +
+    facet_wrap(~ author)
+  
+```

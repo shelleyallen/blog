@@ -1,0 +1,211 @@
+---
+title: Exploring text mining with Project Gutenberg
+author: Shelley Allen
+date: '2019-07-13'
+slug: exploring-text-mining-with-project-gutenberg
+categories: []
+tags: []
+---
+
+
+
+<p>I have recently read (Text Mining with R)[<a href="https://www.tidytextmining.com/" class="uri">https://www.tidytextmining.com/</a>] and thought I would use their approach for some text analysis in R.</p>
+<p>I love Arthur Conan Doyle’s Sherlock Holmes novels so I started by downloading the text for ‘The Adventures of Sherlock Holmes’ from (Project Gutenberg)[<a href="https://www.gutenberg.org/" class="uri">https://www.gutenberg.org/</a>]. This book contains 12 short stories.</p>
+<p>Since writing this blog post, I have discovered that Julia Silge, one of the authors of Text Mining with R, analysed these Sherlock Holmes novels and (blogged brilliantly about them)[<a href="https://juliasilge.com/blog/sherlock-holmes-stm/" class="uri">https://juliasilge.com/blog/sherlock-holmes-stm/</a>] in Jan 2018! There are overlaps between her post and mine but she is mainly discussing the STM package for topic modelling.</p>
+<p>In this first block, each line in the text is labelled by the short story it belongs to. A regex is used to look for Roman Numerals from I to XII. The titles are tidied up a bit using <em>stringr</em> functions. I use the <em>tidytext</em> package to tokenise the text, remove stopwords and calculate term frequencies. Finally, I plot the most frequent terms for each short story.</p>
+<p>The plot shows ‘Holmes’ (unsurprisingly) occurs most frequently in most stories but other words are descriptive of each story. For example, the names of various characters - ‘Irene’ and ‘Adler’ for ‘A Scandal in Bohemia’ and the ‘Rucastle’ in ‘The Adventure of the copper beeches’.</p>
+<pre class="r"><code>  sherlock &lt;- gutenberg_download(1661)</code></pre>
+<pre><code>## Determining mirror for Project Gutenberg from http://www.gutenberg.org/robot/harvest</code></pre>
+<pre><code>## Using mirror http://aleph.gutenberg.org</code></pre>
+<pre class="r"><code>  sherlock &lt;- sherlock %&gt;%
+    mutate(linenumber = row_number()) %&gt;% 
+    filter(linenumber &gt;= 25)
+
+  roman_numerals = str_c(as.roman(seq(1,12)), collapse = &quot;|&quot;)
+  roman_regex = str_c(&quot;^(ADVENTURE[:space:])?(&quot;, roman_numerals, &quot;)\\.[:space:]&quot;)
+  
+  sherlock_books &lt;- sherlock %&gt;%
+    mutate(book = ifelse(str_detect(text, roman_regex), text, NA)) %&gt;%
+    fill(book) %&gt;%
+    mutate(book = str_to_sentence(str_trim(str_replace(book, &quot;^ADVENTURE&quot;, &quot;&quot;))))
+  
+  tidy_sherlock &lt;- sherlock_books %&gt;%
+    unnest_tokens(word, text) %&gt;%
+    anti_join(stop_words)</code></pre>
+<pre><code>## Joining, by = &quot;word&quot;</code></pre>
+<pre class="r"><code>  sherlock_word_counts &lt;- tidy_sherlock %&gt;%
+    group_by(book) %&gt;%
+    count(word, sort=TRUE)
+    
+  
+  sherlock_word_counts %&gt;%
+    top_n(10) %&gt;%
+    ungroup() %&gt;%
+    ggplot(aes(word, n, fill = book)) +
+    geom_col(show.legend = FALSE) +
+    facet_wrap(~book, scales = &quot;free&quot;, ncol = 3) +
+    coord_flip() +
+    labs(x = NULL, y = &quot;Term frequency&quot;) +
+    theme(strip.text = element_text(size = 8))</code></pre>
+<pre><code>## Selecting by n</code></pre>
+<p><img src="/post/2019-07-13-exploring-text-mining-with-project-gutenberg_files/figure-html/sherlock-1.png" width="672" /></p>
+<p>I use another tidytext function (<em>bind_tf_idf</em>) to calculate the term frequency * inverse document frequency (tf-idf) for each term in each short story. I then create a plot to show the terms for each book with the highest tf-idf scores. My son came to have a look at this plot and pointed out that I need to order the facets by Roman Numerals not alphabetically, that could be a future improvement! Notice that the term ‘Holmes’ does not have a high tf-idf score for any of the stories because ‘Holmes’ is found frequently in all stories. If we compare the terms with highest term frequency to those with highest tf-idf score for ‘A Scandal in Bohemia’ then we can see that ‘house’, ‘street’ and ‘door’ have high term frequency but not high tf-idf scores because they occur in all stories.</p>
+<pre class="r"><code>  sherlock_tf_idf &lt;- sherlock_word_counts %&gt;%
+    bind_tf_idf(word, book, n)
+
+  sherlock_tf_idf %&gt;%
+    arrange(desc(tf_idf)) %&gt;%
+    group_by(book) %&gt;% 
+    top_n(10) %&gt;% 
+    ggplot(aes(word, tf_idf, fill = book)) +
+    geom_col(show.legend = FALSE) +
+    facet_wrap(~book, scales = &quot;free&quot;, ncol = 3) +
+    coord_flip() +
+    labs(x = NULL, y = &quot;TF*IDF&quot;) +
+    theme(strip.text = element_text(size = 8))</code></pre>
+<pre><code>## Selecting by tf_idf</code></pre>
+<p><img src="/post/2019-07-13-exploring-text-mining-with-project-gutenberg_files/figure-html/tfidf-1.png" width="672" /></p>
+<p>I decided to investigate the sentiment of the terms with highest tf-idf scores. I used an inner join to word sentiments because most terms in each story will not have a sentiment associated with them. The plot shows the top 10 terms by highest tf-idf (which also have an associated sentiment) for each story, colour is used to indicate sentiment. Looking at the (story summaries on Wikipedia)[<a href="https://en.wikipedia.org/wiki/The_Adventures_of_Sherlock_Holmes#Stories" class="uri">https://en.wikipedia.org/wiki/The_Adventures_of_Sherlock_Holmes#Stories</a>] and comparing with the plot, it appears that stories with more negative themes such as murder have more negative high tf-idf terms than those about more light-hearted themed stories. For example, ‘The five orange pips’ is about murders carried out by the KKK whereas ‘The adventure of the blue carbuncle’ is about a stolen gem!</p>
+<pre class="r"><code>  with_sentiments &lt;- sherlock_tf_idf %&gt;%
+    inner_join(get_sentiments(&quot;bing&quot;))</code></pre>
+<pre><code>## Joining, by = &quot;word&quot;</code></pre>
+<pre class="r"><code>  with_sentiments %&gt;%
+    arrange(desc(tf_idf)) %&gt;%
+    group_by(book) %&gt;% 
+    top_n(n = 10, wt = tf_idf) %&gt;% 
+    ggplot(aes(word, tf_idf, fill = sentiment)) +
+    geom_col() +
+    facet_wrap(~book, ncol = 3, scales = &quot;free&quot;) +
+    coord_flip() +
+    labs(x = NULL, y = &quot;TF*IDF&quot;) +
+    theme(strip.text = element_text(size = 8),
+          legend.position = &quot;bottom&quot;)</code></pre>
+<p><img src="/post/2019-07-13-exploring-text-mining-with-project-gutenberg_files/figure-html/tf-idf-with-sentiments-1.png" width="672" /></p>
+<p>Using the <em>wordcloud</em> library to generate a wordcloud of the most popular terms in the 12 short stories.</p>
+<pre class="r"><code>  sherlock_word_counts_grouped &lt;- tidy_sherlock %&gt;%
+    count(word, sort=TRUE) 
+
+  pal &lt;- brewer.pal(8,&quot;Dark2&quot;)
+  wordcloud(words = sherlock_word_counts_grouped$word, 
+            freq = sherlock_word_counts_grouped$n, 
+            min.freq = 10,
+            max.words = 100,  
+            colors = pal)</code></pre>
+<p><img src="/post/2019-07-13-exploring-text-mining-with-project-gutenberg_files/figure-html/wordcloud-1.png" width="672" /></p>
+<p>The <em>comparison.cloud</em> function can be used to compare the most common terms with positive sentiment to those with negative sentiment.</p>
+<pre class="r"><code>  sherlock_word_counts_grouped %&gt;%
+    inner_join(get_sentiments(&quot;bing&quot;)) %&gt;%
+    acast(word ~ sentiment, value.var = &quot;n&quot;, fill = 0) %&gt;%
+    comparison.cloud(colors = c(&quot;red&quot;, &quot;blue&quot;),
+                     max.words = 100, 
+                     scale = c(3, 0.4))</code></pre>
+<pre><code>## Joining, by = &quot;word&quot;</code></pre>
+<p><img src="/post/2019-07-13-exploring-text-mining-with-project-gutenberg_files/figure-html/wordcloud-sentiment-1.png" width="672" /></p>
+<p>The following tibble shows the proportion of positive and negative terms in each story. Every story has more negative than positive terms but some more than others. It appears to me that the top tf-idf sentiments was more useful in showing the overall sentiment of the stories than looking at every term in the stories.</p>
+<pre class="r"><code>  sherlock_word_counts %&gt;%
+    inner_join(get_sentiments(&quot;bing&quot;)) %&gt;%
+    group_by(book) %&gt;%
+    count(sentiment) %&gt;%
+    mutate(proportion = round(n/sum(n), 2), max_prop = max(proportion)) %&gt;%
+    arrange(desc(max_prop)) %&gt;%
+    select(-max_prop)</code></pre>
+<pre><code>## Joining, by = &quot;word&quot;</code></pre>
+<pre><code>## # A tibble: 24 x 4
+## # Groups:   book [12]
+##    book                                     sentiment     n proportion
+##    &lt;chr&gt;                                    &lt;chr&gt;     &lt;int&gt;      &lt;dbl&gt;
+##  1 Iv. The boscombe valley mystery          negative    189       0.67
+##  2 Iv. The boscombe valley mystery          positive     95       0.33
+##  3 Vi. The man with the twisted lip         negative    200       0.67
+##  4 Vi. The man with the twisted lip         positive    100       0.33
+##  5 Viii. The adventure of the speckled band negative    208       0.67
+##  6 Viii. The adventure of the speckled band positive    103       0.33
+##  7 V. The five orange pips                  negative    153       0.66
+##  8 V. The five orange pips                  positive     79       0.34
+##  9 Vii. The adventure of the blue carbuncle negative    153       0.64
+## 10 Vii. The adventure of the blue carbuncle positive     86       0.36
+## # … with 14 more rows</code></pre>
+<p>It is interesting to note that only about 16-21% of terms in each story has an associated sentiment.</p>
+<pre class="r"><code>  sherlock_word_counts %&gt;%
+    left_join(get_sentiments(&quot;bing&quot;))  %&gt;%
+    mutate(sentiment = ifelse(is.na(sentiment), &#39;unknown&#39;, sentiment)) %&gt;%
+    group_by(book) %&gt;%
+    summarise(prop = (sum(sentiment == &quot;positive&quot;) + sum(sentiment == &quot;negative&quot;))/n()) %&gt;%
+    arrange(desc(prop))</code></pre>
+<pre><code>## Joining, by = &quot;word&quot;</code></pre>
+<pre><code>## # A tibble: 12 x 2
+##    book                                       prop
+##    &lt;chr&gt;                                     &lt;dbl&gt;
+##  1 Xi. The adventure of the beryl coronet    0.212
+##  2 Xii. The adventure of the copper beeches  0.194
+##  3 Viii. The adventure of the speckled band  0.186
+##  4 Iv. The boscombe valley mystery           0.185
+##  5 Iii. A case of identity                   0.185
+##  6 Ii. The red-headed league                 0.185
+##  7 Ix. The adventure of the engineer&#39;s thumb 0.184
+##  8 Vi. The man with the twisted lip          0.184
+##  9 X. The adventure of the noble bachelor    0.177
+## 10 Vii. The adventure of the blue carbuncle  0.173
+## 11 I. A scandal in bohemia                   0.173
+## 12 V. The five orange pips                   0.165</code></pre>
+<p>I thought it would be interesting to compare Arthur Conan Doyle short stories with those of H. G. Wells. I downloaded ‘Thirty Strange Stories’ from Project Gutenberg and did a bit of preprocessing in order to label each line of text with the story it belongs to. Just as with the Sherlock stories, I use <em>tidytext</em> functions to remove stopwords and get word counts.</p>
+<pre class="r"><code>  wells &lt;- gutenberg_download(59774)
+
+  wells &lt;- wells %&gt;%
+    mutate(linenumber = row_number()) 
+
+  contents &lt;- wells %&gt;%
+    filter(linenumber &gt;= 28, linenumber &lt;= 86, text != &quot;&quot;)
+  
+  contents &lt;- contents %&gt;%
+    mutate(text = ifelse(str_detect(text, &quot;A MOTH&quot;), &quot;A MOTH&quot;, text)) %&gt;%
+    mutate(text = paste0(&quot;(&quot;, str_trim(str_replace(text, &quot;[:digit:]+&quot;, &quot;&quot;)), &quot;)&quot;))
+    
+  contents_regex = paste0(&quot;^(&quot;, str_c(contents$text, collapse = &quot;|&quot;), &quot;)$&quot;)
+  
+  wells_books &lt;- wells %&gt;%
+    filter(linenumber &gt;= 96) %&gt;%
+    mutate(text = str_trim(text), book = ifelse(str_detect(text, contents_regex), text, NA)) %&gt;%
+    fill(book)
+  
+  tidy_wells &lt;- wells_books %&gt;%
+    unnest_tokens(word, text) %&gt;%
+    anti_join(stop_words)</code></pre>
+<pre><code>## Joining, by = &quot;word&quot;</code></pre>
+<pre class="r"><code>  wells_word_counts &lt;- tidy_wells %&gt;%
+    group_by(book) %&gt;%
+    count(word, sort=TRUE) </code></pre>
+<p>I use the <em>lda</em> function from the <em>topicmodels</em> library to take the 12 stories from Arthur Conan Doyle and the 30 stories from H G Wells and find just 2 topics. I was wondering whether the stories would be split into each topic. The plot shows that while all of the Sherlock stories are modelled by one topic and most of the Wells stories are modelled by the other topic, there are a few Wells stories that represented either by the ‘Sherlock’ topic or split between the two. This seems reasonable as The Adventures of Sherlock Holmes stories are all detective stories with the 2 main characters remaining the same whereas the H G Wells stories are more varied in topic and style. I think a future blog post could investigate these topics to look at what makes those Wells stories belong to the Sherlock topic.</p>
+<pre class="r"><code>  library(topicmodels)
+
+  s_w_c &lt;- sherlock_word_counts %&gt;%
+    ungroup() %&gt;%
+    mutate(book = paste(&quot;Sherlock:&quot;, book))
+
+  w_w_c &lt;- wells_word_counts %&gt;%
+    ungroup() %&gt;%
+    mutate(book = paste(&quot;Wells:&quot;, book))
+
+  word_counts &lt;- rbind(s_w_c, w_w_c)
+
+  books_dtm &lt;- word_counts %&gt;%
+    cast_dtm(book, word, n)
+  
+  lda &lt;- LDA(books_dtm, k = 2)
+  
+  topics &lt;- tidy(lda, matrix = &quot;beta&quot;)
+  
+  top_terms &lt;- topics %&gt;%
+    group_by(topic) %&gt;%
+    top_n(20, beta) %&gt;%
+    ungroup() %&gt;%
+    arrange(topic, -beta)
+
+  gamma &lt;- tidy(lda, matrix = &quot;gamma&quot;)
+  
+  gamma %&gt;%
+    mutate(author = ifelse(str_detect(document, &quot;Sherlock:&quot;), &quot;Sherlock&quot;, &quot;Wells&quot;)) %&gt;%
+    ggplot(aes(factor(topic), gamma)) +
+    geom_boxplot() +
+    facet_wrap(~ author)</code></pre>
+<p><img src="/post/2019-07-13-exploring-text-mining-with-project-gutenberg_files/figure-html/lda-1.png" width="672" /></p>
