@@ -17,13 +17,13 @@ tags: []
   library(topicmodels)
 ```
 
-I have recently read (Text Mining with R)[https://www.tidytextmining.com/] and thought I would use their approach for some text analysis in R.
+I have recently read [Text Mining with R](https://www.tidytextmining.com/) and thought I would use their approach for some text analysis in R.
 
-I love Arthur Conan Doyle's Sherlock Holmes novels so I started by downloading the text for 'The Adventures of Sherlock Holmes' from (Project Gutenberg)[https://www.gutenberg.org/]. This book contains 12 short stories.
+I love Arthur Conan Doyle's Sherlock Holmes novels so I started by downloading the text for 'The Adventures of Sherlock Holmes' from [Project Gutenberg](https://www.gutenberg.org/). This book contains 12 short stories.
 
-Since writing this blog post, I have discovered that Julia Silge, one of the authors of Text Mining with R, analysed these Sherlock Holmes novels and (blogged brilliantly about them)[https://juliasilge.com/blog/sherlock-holmes-stm/] in Jan 2018! There are overlaps between her post and mine but she is mainly discussing the STM package for topic modelling.
+Since writing this blog post, I have discovered that Julia Silge, one of the authors of Text Mining with R, analysed these Sherlock Holmes novels and [blogged brilliantly about them](https://juliasilge.com/blog/sherlock-holmes-stm/) in Jan 2018! There are overlaps between her post and mine but she is mainly discussing the STM package for topic modelling.
 
-In this first block, each line in the text is labelled by the short story it belongs to. A regex is used to look for Roman Numerals from I to XII. The titles are tidied up a bit using _stringr_ functions. I use the _tidytext_ package to tokenise the text, remove stopwords and calculate term frequencies. Finally, I plot the most frequent terms for each short story.
+In this first block, each line in the text is labelled by the short story it belongs to. A regex is used to look for Roman Numerals from I to XII. The titles are tidied up a bit using __stringr__ functions. I use the __tidytext__ package to tokenise the text, remove stopwords and calculate term frequencies. Finally, I plot the most frequent terms for each short story.
 
 The plot shows 'Holmes' (unsurprisingly) occurs most frequently in most stories but other words are descriptive of each story. For example, the names of various characters - 'Irene' and 'Adler' for 'A Scandal in Bohemia' and the 'Rucastle' in 'The Adventure of the copper beeches'. 
 
@@ -64,7 +64,7 @@ The plot shows 'Holmes' (unsurprisingly) occurs most frequently in most stories 
 ```
 
 
-I use another tidytext function (*bind_tf_idf*) to calculate the term frequency * inverse document frequency (tf-idf) for each term in each short story. I then create a plot to show the terms for each book with the highest tf-idf scores. My son came to have a look at this plot and pointed out that I need to order the facets by Roman Numerals not alphabetically, that could be a future improvement! Notice that the term 'Holmes' does not have a high tf-idf score for any of the stories because 'Holmes' is found frequently in all stories. If we compare the terms with highest term frequency to those with highest tf-idf score for 'A Scandal in Bohemia' then we can see that 'house', 'street' and 'door' have high term frequency but not high tf-idf scores because they occur in all stories. 
+I use another tidytext function (__bind_tf_idf__) to calculate the term frequency * inverse document frequency (tf-idf) for each term in each short story. I then create a plot to show the terms for each book with the highest tf-idf scores. My son came to have a look at this plot and pointed out that I need to order the facets by Roman Numerals not alphabetically, that could be a future improvement! Notice that the term 'Holmes' does not have a high tf-idf score for any of the stories because 'Holmes' is found frequently in all stories. If we compare the terms with highest term frequency to those with highest tf-idf score for 'A Scandal in Bohemia' then we can see that 'house', 'street' and 'door' have high term frequency but not high tf-idf scores because they occur in all stories. 
 
 ```{r tfidf}
   sherlock_tf_idf <- sherlock_word_counts %>%
@@ -83,7 +83,7 @@ I use another tidytext function (*bind_tf_idf*) to calculate the term frequency 
 
 ```
 
-I decided to investigate the sentiment of the terms with highest tf-idf scores. I used an inner join to word sentiments because most terms in each story will not have a sentiment associated with them. The plot shows the top 10 terms by highest tf-idf (which also have an associated sentiment) for each story, colour is used to indicate sentiment. Looking at the (story summaries on Wikipedia)[https://en.wikipedia.org/wiki/The_Adventures_of_Sherlock_Holmes#Stories] and comparing with the plot, it appears that stories with more negative themes such as murder have more negative high tf-idf terms than those about more light-hearted themed stories. For example, 'The five orange pips' is about murders carried out by the KKK whereas 'The adventure of the blue carbuncle' is about a stolen gem!
+I decided to investigate the sentiment of the terms with highest tf-idf scores. I used an inner join to word sentiments because most terms in each story will not have a sentiment associated with them. The plot shows the top 10 terms by highest tf-idf (which also have an associated sentiment) for each story, colour is used to indicate sentiment. Looking at the [story summaries on Wikipedia](https://en.wikipedia.org/wiki/The_Adventures_of_Sherlock_Holmes#Stories) and comparing with the plot, it appears that stories with more negative themes such as murder have more negative high tf-idf terms than those about more light-hearted themed stories. For example, 'The five orange pips' is about murders carried out by the KKK whereas 'The adventure of the blue carbuncle' is about a stolen gem!
 
 ```{r tf-idf-with-sentiments}
   with_sentiments <- sherlock_tf_idf %>%
@@ -102,7 +102,7 @@ I decided to investigate the sentiment of the terms with highest tf-idf scores. 
           legend.position = "bottom")
 ```
 
-Using the _wordcloud_ library to generate a wordcloud of the most popular terms in the 12 short stories.
+Using the __wordcloud__ library to generate a wordcloud of the most popular terms in the 12 short stories.
 
 ```{r wordcloud}
   sherlock_word_counts_grouped <- tidy_sherlock %>%
@@ -116,7 +116,7 @@ Using the _wordcloud_ library to generate a wordcloud of the most popular terms 
             colors = pal)
 ```
 
-The _comparison.cloud_ function can be used to compare the most common terms with positive sentiment to those with negative sentiment.
+The __comparison.cloud__ function can be used to compare the most common terms with positive sentiment to those with negative sentiment.
 
 ```{r wordcloud-sentiment}
   sherlock_word_counts_grouped %>%
@@ -151,7 +151,7 @@ It is interesting to note that only about 16-21% of terms in each story has an a
     
 ```
 
-I thought it would be interesting to compare Arthur Conan Doyle short stories with those of H. G. Wells. I downloaded 'Thirty Strange Stories' from Project Gutenberg and did a bit of preprocessing in order to label each line of text with the story it belongs to. Just as with the Sherlock stories, I use _tidytext_ functions to remove stopwords and get word counts.
+I thought it would be interesting to compare Arthur Conan Doyle short stories with those of H. G. Wells. I downloaded 'Thirty Strange Stories' from Project Gutenberg and did a bit of preprocessing in order to label each line of text with the story it belongs to. Just as with the Sherlock stories, I use __tidytext__ functions to remove stopwords and get word counts.
 
 
 ```{r wells}
@@ -184,7 +184,7 @@ I thought it would be interesting to compare Arthur Conan Doyle short stories wi
 
 ```
 
-I use the _lda_ function from the _topicmodels_ library to take the 12 stories from Arthur Conan Doyle and the 30 stories from H G Wells and find just 2 topics. I was wondering whether the stories would be split into each topic. The plot shows that while all of the Sherlock stories are modelled by one topic and most of the Wells stories are modelled by the other topic, there are a few Wells stories that represented either by the 'Sherlock' topic or split between the two. This seems reasonable as The Adventures of Sherlock Holmes stories are all detective stories with the 2 main characters remaining the same whereas the H G Wells stories are more varied in topic and style. I think a future blog post could investigate these topics to look at what makes those Wells stories belong to the Sherlock topic. 
+I use the __lda__ function from the __topicmodels__ library to take the 12 stories from Arthur Conan Doyle and the 30 stories from H G Wells and find just 2 topics. I was wondering whether the stories would be split into each topic. The plot shows that while all of the Sherlock stories are modelled by one topic and most of the Wells stories are modelled by the other topic, there are a few Wells stories that represented either by the 'Sherlock' topic or split between the two. This seems reasonable as The Adventures of Sherlock Holmes stories are all detective stories with the 2 main characters remaining the same whereas the H G Wells stories are more varied in topic and style. I think a future blog post could investigate these topics to look at what makes those Wells stories belong to the Sherlock topic. 
 
 ```{r lda}
   library(topicmodels)
@@ -202,6 +202,7 @@ I use the _lda_ function from the _topicmodels_ library to take the 12 stories f
   books_dtm <- word_counts %>%
     cast_dtm(book, word, n)
   
+  set.seed(5)
   lda <- LDA(books_dtm, k = 2)
   
   topics <- tidy(lda, matrix = "beta")
@@ -221,3 +222,5 @@ I use the _lda_ function from the _topicmodels_ library to take the 12 stories f
     facet_wrap(~ author)
   
 ```
+
+As a note, I realised that the probability of books belonging to each topic varies between runs. I have set the seed here so that the results are reproducible but I think interesting further work would be to run __lda__ many times and look at the uncertainty or to investigate whether this can already be done with the __topicmodel__ package. 

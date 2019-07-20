@@ -9,10 +9,10 @@ tags: []
 
 
 
-<p>I have recently read (Text Mining with R)[<a href="https://www.tidytextmining.com/" class="uri">https://www.tidytextmining.com/</a>] and thought I would use their approach for some text analysis in R.</p>
-<p>I love Arthur Conan Doyle’s Sherlock Holmes novels so I started by downloading the text for ‘The Adventures of Sherlock Holmes’ from (Project Gutenberg)[<a href="https://www.gutenberg.org/" class="uri">https://www.gutenberg.org/</a>]. This book contains 12 short stories.</p>
-<p>Since writing this blog post, I have discovered that Julia Silge, one of the authors of Text Mining with R, analysed these Sherlock Holmes novels and (blogged brilliantly about them)[<a href="https://juliasilge.com/blog/sherlock-holmes-stm/" class="uri">https://juliasilge.com/blog/sherlock-holmes-stm/</a>] in Jan 2018! There are overlaps between her post and mine but she is mainly discussing the STM package for topic modelling.</p>
-<p>In this first block, each line in the text is labelled by the short story it belongs to. A regex is used to look for Roman Numerals from I to XII. The titles are tidied up a bit using <em>stringr</em> functions. I use the <em>tidytext</em> package to tokenise the text, remove stopwords and calculate term frequencies. Finally, I plot the most frequent terms for each short story.</p>
+<p>I have recently read <a href="https://www.tidytextmining.com/">Text Mining with R</a> and thought I would use their approach for some text analysis in R.</p>
+<p>I love Arthur Conan Doyle’s Sherlock Holmes novels so I started by downloading the text for ‘The Adventures of Sherlock Holmes’ from <a href="https://www.gutenberg.org/">Project Gutenberg</a>. This book contains 12 short stories.</p>
+<p>Since writing this blog post, I have discovered that Julia Silge, one of the authors of Text Mining with R, analysed these Sherlock Holmes novels and <a href="https://juliasilge.com/blog/sherlock-holmes-stm/">blogged brilliantly about them</a> in Jan 2018! There are overlaps between her post and mine but she is mainly discussing the STM package for topic modelling.</p>
+<p>In this first block, each line in the text is labelled by the short story it belongs to. A regex is used to look for Roman Numerals from I to XII. The titles are tidied up a bit using <strong>stringr</strong> functions. I use the <strong>tidytext</strong> package to tokenise the text, remove stopwords and calculate term frequencies. Finally, I plot the most frequent terms for each short story.</p>
 <p>The plot shows ‘Holmes’ (unsurprisingly) occurs most frequently in most stories but other words are descriptive of each story. For example, the names of various characters - ‘Irene’ and ‘Adler’ for ‘A Scandal in Bohemia’ and the ‘Rucastle’ in ‘The Adventure of the copper beeches’.</p>
 <pre class="r"><code>  sherlock &lt;- gutenberg_download(1661)</code></pre>
 <pre><code>## Determining mirror for Project Gutenberg from http://www.gutenberg.org/robot/harvest</code></pre>
@@ -49,7 +49,7 @@ tags: []
     theme(strip.text = element_text(size = 8))</code></pre>
 <pre><code>## Selecting by n</code></pre>
 <p><img src="/post/2019-07-13-exploring-text-mining-with-project-gutenberg_files/figure-html/sherlock-1.png" width="672" /></p>
-<p>I use another tidytext function (<em>bind_tf_idf</em>) to calculate the term frequency * inverse document frequency (tf-idf) for each term in each short story. I then create a plot to show the terms for each book with the highest tf-idf scores. My son came to have a look at this plot and pointed out that I need to order the facets by Roman Numerals not alphabetically, that could be a future improvement! Notice that the term ‘Holmes’ does not have a high tf-idf score for any of the stories because ‘Holmes’ is found frequently in all stories. If we compare the terms with highest term frequency to those with highest tf-idf score for ‘A Scandal in Bohemia’ then we can see that ‘house’, ‘street’ and ‘door’ have high term frequency but not high tf-idf scores because they occur in all stories.</p>
+<p>I use another tidytext function (<strong>bind_tf_idf</strong>) to calculate the term frequency * inverse document frequency (tf-idf) for each term in each short story. I then create a plot to show the terms for each book with the highest tf-idf scores. My son came to have a look at this plot and pointed out that I need to order the facets by Roman Numerals not alphabetically, that could be a future improvement! Notice that the term ‘Holmes’ does not have a high tf-idf score for any of the stories because ‘Holmes’ is found frequently in all stories. If we compare the terms with highest term frequency to those with highest tf-idf score for ‘A Scandal in Bohemia’ then we can see that ‘house’, ‘street’ and ‘door’ have high term frequency but not high tf-idf scores because they occur in all stories.</p>
 <pre class="r"><code>  sherlock_tf_idf &lt;- sherlock_word_counts %&gt;%
     bind_tf_idf(word, book, n)
 
@@ -65,7 +65,7 @@ tags: []
     theme(strip.text = element_text(size = 8))</code></pre>
 <pre><code>## Selecting by tf_idf</code></pre>
 <p><img src="/post/2019-07-13-exploring-text-mining-with-project-gutenberg_files/figure-html/tfidf-1.png" width="672" /></p>
-<p>I decided to investigate the sentiment of the terms with highest tf-idf scores. I used an inner join to word sentiments because most terms in each story will not have a sentiment associated with them. The plot shows the top 10 terms by highest tf-idf (which also have an associated sentiment) for each story, colour is used to indicate sentiment. Looking at the (story summaries on Wikipedia)[<a href="https://en.wikipedia.org/wiki/The_Adventures_of_Sherlock_Holmes#Stories" class="uri">https://en.wikipedia.org/wiki/The_Adventures_of_Sherlock_Holmes#Stories</a>] and comparing with the plot, it appears that stories with more negative themes such as murder have more negative high tf-idf terms than those about more light-hearted themed stories. For example, ‘The five orange pips’ is about murders carried out by the KKK whereas ‘The adventure of the blue carbuncle’ is about a stolen gem!</p>
+<p>I decided to investigate the sentiment of the terms with highest tf-idf scores. I used an inner join to word sentiments because most terms in each story will not have a sentiment associated with them. The plot shows the top 10 terms by highest tf-idf (which also have an associated sentiment) for each story, colour is used to indicate sentiment. Looking at the <a href="https://en.wikipedia.org/wiki/The_Adventures_of_Sherlock_Holmes#Stories">story summaries on Wikipedia</a> and comparing with the plot, it appears that stories with more negative themes such as murder have more negative high tf-idf terms than those about more light-hearted themed stories. For example, ‘The five orange pips’ is about murders carried out by the KKK whereas ‘The adventure of the blue carbuncle’ is about a stolen gem!</p>
 <pre class="r"><code>  with_sentiments &lt;- sherlock_tf_idf %&gt;%
     inner_join(get_sentiments(&quot;bing&quot;))</code></pre>
 <pre><code>## Joining, by = &quot;word&quot;</code></pre>
@@ -81,7 +81,7 @@ tags: []
     theme(strip.text = element_text(size = 8),
           legend.position = &quot;bottom&quot;)</code></pre>
 <p><img src="/post/2019-07-13-exploring-text-mining-with-project-gutenberg_files/figure-html/tf-idf-with-sentiments-1.png" width="672" /></p>
-<p>Using the <em>wordcloud</em> library to generate a wordcloud of the most popular terms in the 12 short stories.</p>
+<p>Using the <strong>wordcloud</strong> library to generate a wordcloud of the most popular terms in the 12 short stories.</p>
 <pre class="r"><code>  sherlock_word_counts_grouped &lt;- tidy_sherlock %&gt;%
     count(word, sort=TRUE) 
 
@@ -92,7 +92,7 @@ tags: []
             max.words = 100,  
             colors = pal)</code></pre>
 <p><img src="/post/2019-07-13-exploring-text-mining-with-project-gutenberg_files/figure-html/wordcloud-1.png" width="672" /></p>
-<p>The <em>comparison.cloud</em> function can be used to compare the most common terms with positive sentiment to those with negative sentiment.</p>
+<p>The <strong>comparison.cloud</strong> function can be used to compare the most common terms with positive sentiment to those with negative sentiment.</p>
 <pre class="r"><code>  sherlock_word_counts_grouped %&gt;%
     inner_join(get_sentiments(&quot;bing&quot;)) %&gt;%
     acast(word ~ sentiment, value.var = &quot;n&quot;, fill = 0) %&gt;%
@@ -148,7 +148,7 @@ tags: []
 ## 10 Vii. The adventure of the blue carbuncle  0.173
 ## 11 I. A scandal in bohemia                   0.173
 ## 12 V. The five orange pips                   0.165</code></pre>
-<p>I thought it would be interesting to compare Arthur Conan Doyle short stories with those of H. G. Wells. I downloaded ‘Thirty Strange Stories’ from Project Gutenberg and did a bit of preprocessing in order to label each line of text with the story it belongs to. Just as with the Sherlock stories, I use <em>tidytext</em> functions to remove stopwords and get word counts.</p>
+<p>I thought it would be interesting to compare Arthur Conan Doyle short stories with those of H. G. Wells. I downloaded ‘Thirty Strange Stories’ from Project Gutenberg and did a bit of preprocessing in order to label each line of text with the story it belongs to. Just as with the Sherlock stories, I use <strong>tidytext</strong> functions to remove stopwords and get word counts.</p>
 <pre class="r"><code>  wells &lt;- gutenberg_download(59774)
 
   wells &lt;- wells %&gt;%
@@ -175,7 +175,7 @@ tags: []
 <pre class="r"><code>  wells_word_counts &lt;- tidy_wells %&gt;%
     group_by(book) %&gt;%
     count(word, sort=TRUE) </code></pre>
-<p>I use the <em>lda</em> function from the <em>topicmodels</em> library to take the 12 stories from Arthur Conan Doyle and the 30 stories from H G Wells and find just 2 topics. I was wondering whether the stories would be split into each topic. The plot shows that while all of the Sherlock stories are modelled by one topic and most of the Wells stories are modelled by the other topic, there are a few Wells stories that represented either by the ‘Sherlock’ topic or split between the two. This seems reasonable as The Adventures of Sherlock Holmes stories are all detective stories with the 2 main characters remaining the same whereas the H G Wells stories are more varied in topic and style. I think a future blog post could investigate these topics to look at what makes those Wells stories belong to the Sherlock topic.</p>
+<p>I use the <strong>lda</strong> function from the <strong>topicmodels</strong> library to take the 12 stories from Arthur Conan Doyle and the 30 stories from H G Wells and find just 2 topics. I was wondering whether the stories would be split into each topic. The plot shows that while all of the Sherlock stories are modelled by one topic and most of the Wells stories are modelled by the other topic, there are a few Wells stories that represented either by the ‘Sherlock’ topic or split between the two. This seems reasonable as The Adventures of Sherlock Holmes stories are all detective stories with the 2 main characters remaining the same whereas the H G Wells stories are more varied in topic and style. I think a future blog post could investigate these topics to look at what makes those Wells stories belong to the Sherlock topic.</p>
 <pre class="r"><code>  library(topicmodels)
 
   s_w_c &lt;- sherlock_word_counts %&gt;%
@@ -191,6 +191,7 @@ tags: []
   books_dtm &lt;- word_counts %&gt;%
     cast_dtm(book, word, n)
   
+  set.seed(5)
   lda &lt;- LDA(books_dtm, k = 2)
   
   topics &lt;- tidy(lda, matrix = &quot;beta&quot;)
@@ -209,3 +210,4 @@ tags: []
     geom_boxplot() +
     facet_wrap(~ author)</code></pre>
 <p><img src="/post/2019-07-13-exploring-text-mining-with-project-gutenberg_files/figure-html/lda-1.png" width="672" /></p>
+<p>As a note, I realised that the probability of books belonging to each topic varies between runs. I have set the seed here so that the results are reproducible but I think interesting further work would be to run <strong>lda</strong> many times and look at the uncertainty or to investigate whether this can already be done with the <strong>topicmodel</strong> package.</p>
